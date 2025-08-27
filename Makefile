@@ -15,7 +15,7 @@ GOMOD=$(GOCMD) mod
 # Build flags
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 
-.PHONY: all build clean test deps lint install dev cross-compile help
+.PHONY: all build clean test deps lint install dev cross-compile help tag push-tag
 
 # Default target
 all: clean deps test build
@@ -105,6 +105,41 @@ checksums:
 release: cross-compile checksums
 	@echo "Release artifacts created in $(BUILD_DIR)/"
 
+# Create and push a new tag
+tag:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make tag VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "Creating tag $(VERSION)..."
+	@if git rev-parse "$(VERSION)" >/dev/null 2>&1; then \
+		echo "Error: Tag $(VERSION) already exists"; \
+		exit 1; \
+	fi
+	@git tag -a "$(VERSION)" -m "Release $(VERSION)"
+	@echo "Tag $(VERSION) created successfully"
+	@echo "Run 'make push-tag VERSION=$(VERSION)' to push the tag and trigger release"
+
+# Push tag to trigger release
+push-tag:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make push-tag VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "Pushing tag $(VERSION) to origin..."
+	@git push origin "$(VERSION)"
+	@echo "Tag $(VERSION) pushed! GitHub Actions will now build and create the release."
+	@echo "Check: https://github.com/phathdt/claude-flip/actions"
+
+# Create tag and push in one command
+release-tag: 
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make release-tag VERSION=v1.0.0"; \
+		exit 1; \
+	fi
+	@$(MAKE) tag VERSION=$(VERSION)
+	@$(MAKE) push-tag VERSION=$(VERSION)
+
 
 # Setup development environment
 setup:
@@ -132,5 +167,8 @@ help:
 	@echo "  cross-compile  - Build for multiple platforms"
 	@echo "  checksums      - Generate SHA256 checksums"
 	@echo "  release        - Create release with cross-platform binaries and checksums"
+	@echo "  tag            - Create a new tag (usage: make tag VERSION=v1.0.0)"
+	@echo "  push-tag       - Push tag to trigger GitHub release (usage: make push-tag VERSION=v1.0.0)"
+	@echo "  release-tag    - Create and push tag in one command (usage: make release-tag VERSION=v1.0.0)"
 	@echo "  setup          - Setup development environment"
 	@echo "  help           - Show this help message"
