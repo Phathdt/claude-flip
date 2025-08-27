@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"claude-flip/internal/config"
+	"claude-flip/internal/storage"
 )
 
 // Switcher handles switching between Claude Code accounts
@@ -279,7 +281,77 @@ func (s *Switcher) applyProfile(profile *Profile) error {
 }
 
 // loadCredentials loads the Claude Code credentials
-func (s *Switcher) loadCredentials() (*config.Credentials, error) {
+// LoadCredentials loads Claude Code credentials using platform-specific storage
+func LoadCredentials() (*config.Credentials, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		return loadCredentialsMacOS()
+	case "linux":
+		return loadCredentialsLinux()
+	default:
+		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+}
+
+// SaveCredentials saves Claude Code credentials using platform-specific storage
+func SaveCredentials(credentials *config.Credentials) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return saveCredentialsMacOS(credentials)
+	case "linux":
+		return saveCredentialsLinux(credentials)
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+}
+
+// loadCredentialsMacOS loads credentials from macOS Keychain
+func loadCredentialsMacOS() (*config.Credentials, error) {
+	keychain := storage.NewKeychainStorage("Claude Code-credentials")
+	
+	// Try to get current user for account key
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "default"
+	}
+	
+	data, err := keychain.Retrieve(user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load credentials from keychain: %w", err)
+	}
+	
+	var credentials config.Credentials
+	if err := json.Unmarshal([]byte(data), &credentials); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal credentials: %w", err)
+	}
+	
+	return &credentials, nil
+}
+
+// saveCredentialsMacOS saves credentials to macOS Keychain
+func saveCredentialsMacOS(credentials *config.Credentials) error {
+	data, err := json.Marshal(credentials)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+	
+	keychain := storage.NewKeychainStorage("Claude Code-credentials")
+	
+	// Try to get current user for account key
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "default"
+	}
+	
+	if err := keychain.Store(user, string(data)); err != nil {
+		return fmt.Errorf("failed to store credentials in keychain: %w", err)
+	}
+	
+	return nil
+}
+
+// loadCredentialsLinux loads credentials from file system
+func loadCredentialsLinux() (*config.Credentials, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
@@ -299,8 +371,8 @@ func (s *Switcher) loadCredentials() (*config.Credentials, error) {
 	return &credentials, nil
 }
 
-// saveCredentials saves the Claude Code credentials
-func (s *Switcher) saveCredentials(credentials *config.Credentials) error {
+// saveCredentialsLinux saves credentials to file system
+func saveCredentialsLinux(credentials *config.Credentials) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %w", err)
@@ -325,4 +397,13 @@ func (s *Switcher) saveCredentials(credentials *config.Credentials) error {
 	}
 
 	return nil
+}
+
+func (s *Switcher) loadCredentials() (*config.Credentials, error) {
+	return LoadCredentials()
+}
+
+// saveCredentials saves the Claude Code credentials
+func (s *Switcher) saveCredentials(credentials *config.Credentials) error {
+	return SaveCredentials(credentials)
 }

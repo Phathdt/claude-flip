@@ -236,7 +236,7 @@ func listAccounts(c *cli.Context) error {
 
 		// Note: We don't have expiration check in ProfileInfo, could add if needed
 
-		logger.Plain(accountInfo)
+		logger.Plain("%s", accountInfo)
 
 		if verbose {
 			logger.Plain("   Created: %s", profile.CreatedAt)
