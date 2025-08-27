@@ -60,17 +60,17 @@ func (k *KeychainStorage) Delete(key string) error {
 // storeMacOS stores data in macOS Keychain
 func (k *KeychainStorage) storeMacOS(key, data string) error {
 	// Use security command to store in keychain
-	cmd := exec.Command("security", "add-generic-password", 
+	cmd := exec.Command("security", "add-generic-password",
 		"-U", // Update if exists
 		"-s", k.serviceName,
 		"-a", key,
 		"-w", data)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to store in keychain: %w (output: %s)", err, string(output))
 	}
-	
+
 	return nil
 }
 
@@ -80,7 +80,7 @@ func (k *KeychainStorage) retrieveMacOS(key string) (string, error) {
 		"-s", k.serviceName,
 		"-a", key,
 		"-w") // Return password only
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		if strings.Contains(err.Error(), "exit status 44") {
@@ -88,7 +88,7 @@ func (k *KeychainStorage) retrieveMacOS(key string) (string, error) {
 		}
 		return "", fmt.Errorf("failed to retrieve from keychain: %w", err)
 	}
-	
+
 	// Remove trailing newline if present
 	data := strings.TrimSuffix(string(output), "\n")
 	return data, nil
@@ -99,7 +99,7 @@ func (k *KeychainStorage) deleteMacOS(key string) error {
 	cmd := exec.Command("security", "delete-generic-password",
 		"-s", k.serviceName,
 		"-a", key)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(err.Error(), "exit status 44") {
@@ -108,7 +108,7 @@ func (k *KeychainStorage) deleteMacOS(key string) error {
 		}
 		return fmt.Errorf("failed to delete from keychain: %w (output: %s)", err, string(output))
 	}
-	
+
 	return nil
 }
 
