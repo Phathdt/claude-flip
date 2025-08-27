@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	"claude-flip/internal/profile"
+	"github.com/phathdt/claude-flip/internal/profile"
 )
 
 // Service provides the main business logic for Claude Flip

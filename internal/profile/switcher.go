@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"time"
 
-	"claude-flip/internal/config"
-	"claude-flip/internal/storage"
+	"github.com/phathdt/claude-flip/internal/config"
+	"github.com/phathdt/claude-flip/internal/storage"
 )
 
 // Switcher handles switching between Claude Code accounts

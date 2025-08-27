@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"claude-flip/internal/logger"
-	"claude-flip/internal/service"
+	"github.com/phathdt/claude-flip/internal/logger"
+	"github.com/phathdt/claude-flip/internal/service"
 
 	"github.com/urfave/cli/v2"
 )

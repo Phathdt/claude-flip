@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"claude-flip/internal/config"
+	"github.com/phathdt/claude-flip/internal/config"
 )
 
 // Profile represents a saved Claude Code account configuration

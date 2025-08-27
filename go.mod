@@ -1,4 +1,4 @@
-module claude-flip
+module github.com/phathdt/claude-flip
 
 go 1.24.3
 
