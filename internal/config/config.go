@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/phathdt/claude-flip/internal/storage"
 )
 
 // ClaudeConfig represents the complete Claude Code configuration structure
@@ -20,10 +22,6 @@ type OAuthAccount struct {
 	OrganizationRole string `json:"organizationRole,omitempty"`
 	WorkspaceRole    string `json:"workspaceRole,omitempty"`
 	OrganizationName string `json:"organizationName,omitempty"`
-	// Credentials are loaded separately from .credentials.json
-	AccessToken  string `json:"-"` // Not stored in main config
-	RefreshToken string `json:"-"` // Not stored in main config
-	ExpiresAt    int64  `json:"-"` // Not stored in main config
 }
 
 // Credentials represents the structure of ~/.claude/.credentials.json
@@ -66,7 +64,6 @@ func FindClaudeConfigDir() (string, error) {
 }
 
 // LoadClaudeConfig reads and parses the Claude Code configuration
-// LoadClaudeConfig reads and parses the Claude Code configuration
 func LoadClaudeConfig() (*ClaudeConfig, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -104,22 +101,15 @@ func LoadClaudeConfig() (*ClaudeConfig, error) {
 		return nil, fmt.Errorf("no valid Claude Code config file found: %w", lastErr)
 	}
 
-	// Load credentials file and add access tokens to a special field
-	// (not into oauthAccount since that's not how Claude Code stores them)
-	credentialsPath := filepath.Join(home, ".claude", ".credentials.json")
-	if credData, err := os.ReadFile(credentialsPath); err == nil {
-		var credentials Credentials
-		if err := json.Unmarshal(credData, &credentials); err == nil {
-			// Store credentials in a special field for our use
-			config["_cflip_credentials"] = credentials
-		}
+	// Load credentials using platform-specific method
+	if credentials, err := loadCredentialsForConfig(); err == nil {
+		// Store credentials in a special field for our use
+		config["_cflip_credentials"] = *credentials
 	}
 
 	return &config, nil
 }
 
-// SaveClaudeConfig writes the configuration back to disk
-// SaveClaudeConfig writes the configuration back to disk
 // SaveClaudeConfig writes the configuration back to disk
 func SaveClaudeConfig(config *ClaudeConfig) error {
 	home, err := os.UserHomeDir()
@@ -166,7 +156,6 @@ func SaveClaudeConfig(config *ClaudeConfig) error {
 }
 
 // ValidateConfig checks if the configuration contains required fields
-// ValidateConfig checks if the configuration contains required fields
 func ValidateConfig(config ClaudeConfig) error {
 	if config == nil {
 		return fmt.Errorf("config is nil")
@@ -190,7 +179,6 @@ func ValidateConfig(config ClaudeConfig) error {
 	return nil
 }
 
-// GetUserEmail extracts the user email from config
 // GetUserEmail extracts the user email from config
 func (c ClaudeConfig) GetUserEmail() string {
 	if oauthAccount, ok := c["oauthAccount"].(map[string]interface{}); ok {
@@ -223,8 +211,23 @@ func (c ClaudeConfig) GetOrganizationName() string {
 
 // GetCredentials extracts stored credentials from config
 func (c ClaudeConfig) GetCredentials() (*Credentials, bool) {
-	if creds, ok := c["_cflip_credentials"].(Credentials); ok {
-		return &creds, true
+	if credsData, ok := c["_cflip_credentials"]; ok {
+		// Handle both direct Credentials struct and map[string]interface{} cases
+		switch v := credsData.(type) {
+		case Credentials:
+			return &v, true
+		case map[string]interface{}:
+			// Convert map to Credentials struct
+			data, err := json.Marshal(v)
+			if err != nil {
+				return nil, false
+			}
+			var creds Credentials
+			if err := json.Unmarshal(data, &creds); err != nil {
+				return nil, false
+			}
+			return &creds, true
+		}
 	}
 	return nil, false
 }
@@ -232,6 +235,22 @@ func (c ClaudeConfig) GetCredentials() (*Credentials, bool) {
 // SetOAuthAccount updates the oauthAccount section in the config
 func (c ClaudeConfig) SetOAuthAccount(oauthData map[string]interface{}) {
 	c["oauthAccount"] = oauthData
+}
+
+// loadCredentialsForConfig loads credentials using platform-specific method
+func loadCredentialsForConfig() (*Credentials, error) {
+	keychain := storage.NewKeychainStorage("Claude Code")
+	credentialsJSON, err := keychain.Retrieve("credentials")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve credentials: %w", err)
+	}
+
+	var credentials Credentials
+	if err := json.Unmarshal([]byte(credentialsJSON), &credentials); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal credentials: %w", err)
+	}
+
+	return &credentials, nil
 }
 
 // copyFile creates a copy of a file
