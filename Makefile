@@ -15,7 +15,7 @@ GOMOD=$(GOCMD) mod
 # Build flags
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 
-.PHONY: all build clean test deps lint install dev cross-compile help tag push-tag
+.PHONY: all build clean test deps lint install dev cross-compile help tag push-tag format-go format-check
 
 # Default target
 all: clean deps test build
@@ -66,10 +66,52 @@ lint:
 	@echo "Running linter..."
 	golangci-lint run
 
-# Format code
+# Format code (legacy - use format-go instead)
 fmt:
 	@echo "Formatting code..."
 	$(GOCMD) fmt ./...
+
+# Enhanced Go formatting with multiple tools
+format-go:
+	@echo "🎨 Formatting all Go files..."
+	@find . -name "*.go" -type f -exec gofmt -w {} \;
+	@echo "📦 Organizing imports..."
+	@if command -v goimports >/dev/null 2>&1; then \
+		goimports -w .; \
+	else \
+		echo "⚠️  goimports not found, skipping import organization"; \
+		echo "   Install with: go install golang.org/x/tools/cmd/goimports@latest"; \
+	fi
+	@echo "📏 Formatting line lengths..."
+	@if command -v golines >/dev/null 2>&1; then \
+		golines -w -m 120 .; \
+	else \
+		echo "⚠️  golines not found, skipping line length formatting"; \
+		echo "   Install with: go install github.com/segmentio/golines@latest"; \
+	fi
+	@echo "✨ Applying gofumpt formatting..."
+	@if command -v gofumpt >/dev/null 2>&1; then \
+		gofumpt -extra -w .; \
+	else \
+		echo "⚠️  gofumpt not found, skipping enhanced formatting"; \
+		echo "   Install with: go install mvdan.cc/gofumpt@latest"; \
+	fi
+	@echo "✅ Go files formatted successfully!"
+
+# Alias format to format-go for convenience
+format: format-go
+
+# Check Go file formatting
+format-check:
+	@echo "🔍 Checking Go file formatting..."
+	@if find . -name "*.go" -type f -exec gofmt -l {} \; | grep -q .; then \
+		echo "❌ Some Go files are not properly formatted:"; \
+		find . -name "*.go" -type f -exec gofmt -l {} \; | sed 's/^/  /'; \
+		echo "Run 'make format' to fix formatting issues"; \
+		exit 1; \
+	else \
+		echo "✅ All Go files are properly formatted"; \
+	fi
 
 # Run the application
 run:
@@ -147,8 +189,22 @@ setup:
 	$(GOMOD) download
 	@if ! command -v golangci-lint >/dev/null 2>&1; then \
 		echo "Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin; \
 	fi
+	@echo "Installing formatting tools..."
+	@if ! command -v goimports >/dev/null 2>&1; then \
+		echo "Installing goimports..."; \
+		$(GOCMD) install golang.org/x/tools/cmd/goimports@latest; \
+	fi
+	@if ! command -v golines >/dev/null 2>&1; then \
+		echo "Installing golines..."; \
+		$(GOCMD) install github.com/segmentio/golines@latest; \
+	fi
+	@if ! command -v gofumpt >/dev/null 2>&1; then \
+		echo "Installing gofumpt..."; \
+		$(GOCMD) install mvdan.cc/gofumpt@latest; \
+	fi
+	@echo "✅ Development environment setup complete!"
 
 # Show help
 help:
@@ -162,7 +218,10 @@ help:
 	@echo "  clean          - Remove build artifacts"
 	@echo "  deps           - Download and tidy dependencies"
 	@echo "  lint           - Run golangci-lint"
-	@echo "  fmt            - Format code"
+	@echo "  fmt            - Format code (basic)"
+	@echo "  format         - Enhanced Go formatting with multiple tools"
+	@echo "  format-go      - Same as format (enhanced Go formatting)"
+	@echo "  format-check   - Check if Go files are properly formatted"
 	@echo "  run            - Run the application"
 	@echo "  cross-compile  - Build for multiple platforms"
 	@echo "  checksums      - Generate SHA256 checksums"
