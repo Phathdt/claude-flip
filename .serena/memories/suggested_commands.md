@@ -34,7 +34,7 @@ make setup
 
 ### Release Commands
 ```bash
-# Cross-compile for all platforms (Linux/macOS/Windows, AMD64/ARM64)
+# Cross-compile for all platforms (Linux/macOS, AMD64/ARM64)
 make cross-compile
 
 # Create full release with binaries and checksums

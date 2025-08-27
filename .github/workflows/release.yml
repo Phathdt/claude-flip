@@ -12,68 +12,67 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24.3'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
 
-    - name: Get version from tag
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-    - name: Build binaries
-      run: |
-        make clean
-        make deps
-        VERSION=${{ steps.version.outputs.VERSION }} make cross-compile
-        make checksums
+      - name: Build binaries
+        run: |
+          make clean
+          make deps
+          VERSION=${{ steps.version.outputs.VERSION }} make cross-compile
+          make checksums
 
-    - name: Create Release Notes
-      id: release_notes
-      run: |
-        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
-        echo "## What's Changed" >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "Release ${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "### Download" >> $GITHUB_OUTPUT
-        echo "Choose the appropriate binary for your platform:" >> $GITHUB_OUTPUT
-        echo "- **Linux AMD64**: \`cflip-linux-amd64\`" >> $GITHUB_OUTPUT
-        echo "- **Linux ARM64**: \`cflip-linux-arm64\`" >> $GITHUB_OUTPUT
-        echo "- **macOS Intel**: \`cflip-darwin-amd64\`" >> $GITHUB_OUTPUT
-        echo "- **macOS Apple Silicon**: \`cflip-darwin-arm64\`" >> $GITHUB_OUTPUT
-        echo "- **Windows**: \`cflip-windows-amd64.exe\`" >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "### Installation" >> $GITHUB_OUTPUT
-        echo "\`\`\`bash" >> $GITHUB_OUTPUT
-        echo "# Download and install (replace with your platform)" >> $GITHUB_OUTPUT
-        echo "curl -L -o cflip https://github.com/phathdt/claude-flip/releases/download/${{ steps.version.outputs.VERSION }}/cflip-linux-amd64" >> $GITHUB_OUTPUT
-        echo "chmod +x cflip" >> $GITHUB_OUTPUT
-        echo "sudo mv cflip /usr/local/bin/" >> $GITHUB_OUTPUT
-        echo "\`\`\`" >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "Verify the download with checksums.sha256" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+      - name: Create Release Notes
+        id: release_notes
+        run: |
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "## What's Changed" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "Release ${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Download" >> $GITHUB_OUTPUT
+          echo "Choose the appropriate binary for your platform:" >> $GITHUB_OUTPUT
+          echo "- **Linux AMD64**: \`cflip-linux-amd64\`" >> $GITHUB_OUTPUT
+          echo "- **Linux ARM64**: \`cflip-linux-arm64\`" >> $GITHUB_OUTPUT
+          echo "- **macOS Intel**: \`cflip-darwin-amd64\`" >> $GITHUB_OUTPUT
+          echo "- **macOS Apple Silicon**: \`cflip-darwin-arm64\`" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Installation" >> $GITHUB_OUTPUT
+          echo "\`\`\`bash" >> $GITHUB_OUTPUT
+          echo "# Download and install (replace with your platform)" >> $GITHUB_OUTPUT
+          echo "curl -L -o cflip https://github.com/phathdt/claude-flip/releases/download/${{ steps.version.outputs.VERSION }}/cflip-linux-amd64" >> $GITHUB_OUTPUT
+          echo "chmod +x cflip" >> $GITHUB_OUTPUT
+          echo "sudo mv cflip /usr/local/bin/" >> $GITHUB_OUTPUT
+          echo "\`\`\`" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "Verify the download with checksums.sha256" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          bin/cflip-*
-          bin/checksums.sha256
-        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/cflip-*
+            bin/checksums.sha256
+          body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Update latest tag
-      run: |
-        git tag -f latest
-        git push origin latest --force
+      - name: Update latest tag
+        run: |
+          git tag -f latest
+          git push origin latest --force

@@ -122,21 +122,18 @@ run:
 cross-compile: clean
 	@echo "Cross-compiling for multiple platforms..."
 	@mkdir -p $(BUILD_DIR)
-	
+
 	# Linux AMD64
 	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PACKAGE)
-	
+
 	# Linux ARM64
 	GOOS=linux GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PACKAGE)
-	
+
 	# macOS AMD64
 	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PACKAGE)
-	
+
 	# macOS ARM64 (M1/M2)
 	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PACKAGE)
-	
-	# Windows AMD64
-	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PACKAGE)
 
 # Generate checksums for release binaries
 checksums:
@@ -174,7 +171,7 @@ push-tag:
 	@echo "Check: https://github.com/phathdt/claude-flip/actions"
 
 # Create tag and push in one command
-release-tag: 
+release-tag:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Error: VERSION is required. Usage: make release-tag VERSION=v1.0.0"; \
 		exit 1; \

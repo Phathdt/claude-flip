@@ -32,7 +32,7 @@ make fmt
 # Run linter (requires golangci-lint)
 make lint
 
-# Cross-compile for all platforms (Linux/macOS/Windows, AMD64/ARM64)
+# Cross-compile for all platforms (Linux/macOS, AMD64/ARM64)
 make cross-compile
 
 # Create full release with binaries and checksums
