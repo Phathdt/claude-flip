@@ -239,10 +239,11 @@ func (c ClaudeConfig) SetOAuthAccount(oauthData map[string]interface{}) {
 
 // loadCredentialsForConfig loads credentials using platform-specific method
 func loadCredentialsForConfig() (*Credentials, error) {
-	keychain := storage.NewKeychainStorage("Claude Code")
-	credentialsJSON, err := keychain.Retrieve("credentials")
+	// Use the SecureStorage Capture method to read from Claude Code's native storage
+	storage := storage.NewSecureStorage()
+	credentialsJSON, err := storage.Capture()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve credentials: %w", err)
+		return nil, fmt.Errorf("failed to capture credentials: %w", err)
 	}
 
 	var credentials Credentials

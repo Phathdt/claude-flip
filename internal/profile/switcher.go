@@ -307,7 +307,7 @@ func SaveCredentials(credentials *config.Credentials) error {
 
 // loadCredentialsMacOS loads credentials from macOS Keychain
 func loadCredentialsMacOS() (*config.Credentials, error) {
-	keychain := storage.NewKeychainStorage("Claude Code-credentials")
+	storage := storage.NewSecureStorage()
 
 	// Try to get current user for account key
 	user := os.Getenv("USER")
@@ -315,7 +315,7 @@ func loadCredentialsMacOS() (*config.Credentials, error) {
 		user = "default"
 	}
 
-	data, err := keychain.Retrieve(user)
+	data, err := storage.Retrieve(user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load credentials from keychain: %w", err)
 	}
@@ -335,7 +335,7 @@ func saveCredentialsMacOS(credentials *config.Credentials) error {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
 
-	keychain := storage.NewKeychainStorage("Claude Code-credentials")
+	storage := storage.NewSecureStorage()
 
 	// Try to get current user for account key
 	user := os.Getenv("USER")
@@ -343,7 +343,7 @@ func saveCredentialsMacOS(credentials *config.Credentials) error {
 		user = "default"
 	}
 
-	if err := keychain.Store(user, string(data)); err != nil {
+	if err := storage.Store(user, string(data)); err != nil {
 		return fmt.Errorf("failed to store credentials in keychain: %w", err)
 	}
 

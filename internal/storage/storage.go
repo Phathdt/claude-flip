@@ -9,72 +9,37 @@ import (
 	"strings"
 )
 
+// Constants for Claude Code service names
+const (
+	ClaudeCodeKeychainService = "Claude Code-credentials"
+	CFlipServiceName          = "cflip"
+)
+
 // SecureStorage defines the interface for secure credential storage
 type SecureStorage interface {
 	Store(key, data string) error
 	Retrieve(key string) (string, error)
 	Delete(key string) error
+	// Capture reads credentials from Claude Code's native storage location
+	Capture() (string, error)
 }
 
 // MacOSKeychain implements SecureStorage using macOS Keychain Services
-type MacOSKeychain struct {
-	serviceName string
-}
+type MacOSKeychain struct{}
 
 // LinuxFileStorage implements SecureStorage using encrypted files
-type LinuxFileStorage struct {
-	serviceName string
-}
-
-// KeychainStorage provides cross-platform secure storage
-type KeychainStorage struct {
-	serviceName string
-	impl        SecureStorage
-}
+type LinuxFileStorage struct{}
 
 // NewSecureStorage creates the appropriate secure storage implementation based on platform
-func NewSecureStorage(serviceName string) SecureStorage {
+func NewSecureStorage() SecureStorage {
 	switch runtime.GOOS {
 	case "darwin":
-		return &MacOSKeychain{serviceName: serviceName}
+		return &MacOSKeychain{}
 	case "linux":
-		return &LinuxFileStorage{serviceName: serviceName}
+		return &LinuxFileStorage{}
 	default:
 		return nil
 	}
-}
-
-// NewKeychainStorage creates a new keychain storage instance
-func NewKeychainStorage(serviceName string) *KeychainStorage {
-	impl := NewSecureStorage(serviceName)
-	return &KeychainStorage{
-		serviceName: serviceName,
-		impl:        impl,
-	}
-}
-
-// Store saves data securely using the platform-specific implementation
-func (k *KeychainStorage) Store(key, data string) error {
-	if k.impl == nil {
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-	return k.impl.Store(key, data)
-}
-
-// Retrieve gets data securely using the platform-specific implementation
-func (k *KeychainStorage) Retrieve(key string) (string, error) {
-	if k.impl == nil {
-		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-	return k.impl.Retrieve(key)
-}
-
-// Delete removes data securely using the platform-specific implementation
-func (k *KeychainStorage) Delete(key string) error {
-	if k.impl == nil {
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-	return k.impl.Delete(key)
 }
 
 // MacOSKeychain implementation
@@ -83,7 +48,7 @@ func (k *KeychainStorage) Delete(key string) error {
 func (m *MacOSKeychain) Store(key, data string) error {
 	cmd := exec.Command("security", "add-generic-password",
 		"-U", // Update if exists
-		"-s", m.serviceName,
+		"-s", ClaudeCodeKeychainService,
 		"-a", key,
 		"-w", data)
 
@@ -98,7 +63,7 @@ func (m *MacOSKeychain) Store(key, data string) error {
 // Retrieve gets data from macOS Keychain
 func (m *MacOSKeychain) Retrieve(key string) (string, error) {
 	cmd := exec.Command("security", "find-generic-password",
-		"-s", m.serviceName,
+		"-s", ClaudeCodeKeychainService,
 		"-a", key,
 		"-w") // Return password only
 
@@ -117,7 +82,7 @@ func (m *MacOSKeychain) Retrieve(key string) (string, error) {
 // Delete removes data from macOS Keychain
 func (m *MacOSKeychain) Delete(key string) error {
 	cmd := exec.Command("security", "delete-generic-password",
-		"-s", m.serviceName,
+		"-s", ClaudeCodeKeychainService,
 		"-a", key)
 
 	output, err := cmd.CombinedOutput()
@@ -129,6 +94,20 @@ func (m *MacOSKeychain) Delete(key string) error {
 	}
 
 	return nil
+}
+
+// Capture reads credentials from macOS Keychain using Claude Code's service name
+func (m *MacOSKeychain) Capture() (string, error) {
+	// Use Claude Code's keychain service name
+	keychain := MacOSKeychain{}
+
+	// Try to get current user for account key
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "default"
+	}
+
+	return keychain.Retrieve(user)
 }
 
 // LinuxFileStorage implementation
@@ -145,7 +124,7 @@ func (l *LinuxFileStorage) Store(key, data string) error {
 		return fmt.Errorf("failed to create credentials directory: %w", err)
 	}
 
-	filename := fmt.Sprintf(".%s_%s.json", l.serviceName, key)
+	filename := fmt.Sprintf(".%s_%s.json", CFlipServiceName, key)
 	credentialsPath := filepath.Join(credentialsDir, filename)
 
 	tempPath := credentialsPath + ".tmp"
@@ -168,7 +147,7 @@ func (l *LinuxFileStorage) Retrieve(key string) (string, error) {
 		return "", fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	filename := fmt.Sprintf(".%s_%s.json", l.serviceName, key)
+	filename := fmt.Sprintf(".%s_%s.json", CFlipServiceName, key)
 	credentialsPath := filepath.Join(home, ".claude", filename)
 
 	data, err := os.ReadFile(credentialsPath)
@@ -189,7 +168,7 @@ func (l *LinuxFileStorage) Delete(key string) error {
 		return fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	filename := fmt.Sprintf(".%s_%s.json", l.serviceName, key)
+	filename := fmt.Sprintf(".%s_%s.json", CFlipServiceName, key)
 	credentialsPath := filepath.Join(home, ".claude", filename)
 
 	err = os.Remove(credentialsPath)
@@ -201,4 +180,20 @@ func (l *LinuxFileStorage) Delete(key string) error {
 	}
 
 	return nil
+}
+
+// Capture reads credentials from Claude Code's standard location on Linux
+func (l *LinuxFileStorage) Capture() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	credentialsPath := filepath.Join(home, ".claude", ".credentials.json")
+	data, err := os.ReadFile(credentialsPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read Claude Code credentials: %w", err)
+	}
+
+	return string(data), nil
 }
